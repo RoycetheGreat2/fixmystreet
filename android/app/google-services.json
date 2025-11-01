@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "107756355915",
+    "project_id": "fixmystreet-firebase",
+    "storage_bucket": "fixmystreet-firebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:107756355915:android:bfa50e08e76c974879e8ce",
+        "android_client_info": {
+          "package_name": "com.example.main"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0WBitHCQBiNsg2oX4G_Y_GdJmYnMoSzU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
