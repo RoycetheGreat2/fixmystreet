@@ -12,6 +12,14 @@ class AdminReportsManagement extends StatefulWidget {
 
 class _AdminReportsManagementState extends State<AdminReportsManagement> {
   String _statusFilter = 'All';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _deleteReport(String reportId) async {
     final confirm = await showDialog<bool>(
@@ -35,7 +43,6 @@ class _AdminReportsManagementState extends State<AdminReportsManagement> {
 
     if (confirm == true) {
       try {
-        // Delete all comments first
         final comments = await FirebaseFirestore.instance
             .collection('reports')
             .doc(reportId)
@@ -46,7 +53,6 @@ class _AdminReportsManagementState extends State<AdminReportsManagement> {
           await doc.reference.delete();
         }
 
-        // Delete the report
         await FirebaseFirestore.instance
             .collection('reports')
             .doc(reportId)
@@ -63,82 +69,78 @@ class _AdminReportsManagementState extends State<AdminReportsManagement> {
     }
   }
 
-  
-Future<void> _changeStatus(String reportId, String currentStatus) async {
-  final newStatus = await showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Change Status'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: Text('Pending'),
-            leading: Radio<String>(
-              value: 'Pending',
-              groupValue: currentStatus,
-              onChanged: (value) => Navigator.pop(context, value),
+  Future<void> _changeStatus(String reportId, String currentStatus) async {
+    final newStatus = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Change Status'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text('Pending'),
+              leading: Radio<String>(
+                value: 'Pending',
+                groupValue: currentStatus,
+                onChanged: (value) => Navigator.pop(context, value),
+              ),
             ),
-          ),
-          ListTile(
-            title: Text('In Progress'),
-            leading: Radio<String>(
-              value: 'In Progress',
-              groupValue: currentStatus,
-              onChanged: (value) => Navigator.pop(context, value),
+            ListTile(
+              title: Text('In Progress'),
+              leading: Radio<String>(
+                value: 'In Progress',
+                groupValue: currentStatus,
+                onChanged: (value) => Navigator.pop(context, value),
+              ),
             ),
-          ),
-          ListTile(
-            title: Text('Resolved'),
-            leading: Radio<String>(
-              value: 'Resolved',
-              groupValue: currentStatus,
-              onChanged: (value) => Navigator.pop(context, value),
+            ListTile(
+              title: Text('Resolved'),
+              leading: Radio<String>(
+                value: 'Resolved',
+                groupValue: currentStatus,
+                onChanged: (value) => Navigator.pop(context, value),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
 
-  if (newStatus != null && newStatus != currentStatus) {
-    try {
-      // Get the report data first to find the userId and title
-      final reportDoc = await FirebaseFirestore.instance
-          .collection('reports')
-          .doc(reportId)
-          .get();
-      
-      final reportData = reportDoc.data() as Map<String, dynamic>;
-      final userId = reportData['userId'];
-      final reportTitle = reportData['title'] ?? 'Your report';
+    if (newStatus != null && newStatus != currentStatus) {
+      try {
+        final reportDoc = await FirebaseFirestore.instance
+            .collection('reports')
+            .doc(reportId)
+            .get();
+        
+        final reportData = reportDoc.data() as Map<String, dynamic>;
+        final userId = reportData['userId'];
+        final reportTitle = reportData['title'] ?? 'Your report';
 
-      // Update the status
-      await FirebaseFirestore.instance
-          .collection('reports')
-          .doc(reportId)
-          .update({'status': newStatus});
+        await FirebaseFirestore.instance
+            .collection('reports')
+            .doc(reportId)
+            .update({'status': newStatus});
 
-      // Send notification to the report creator
-      if (userId != null) {
-        await NotificationService.sendStatusChangeNotification(
-          userId: userId,
-          reportId: reportId,
-          reportTitle: reportTitle,
-          newStatus: newStatus,
+        if (userId != null) {
+          await NotificationService.sendStatusChangeNotification(
+            userId: userId,
+            reportId: reportId,
+            reportTitle: reportTitle,
+            newStatus: newStatus,
+          );
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to $newStatus')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating status: $e')),
         );
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status updated to $newStatus')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating status: $e')),
-      );
     }
   }
-}
 
   Future<void> _deleteComment(String reportId, String commentId) async {
     final confirm = await showDialog<bool>(
@@ -305,7 +307,6 @@ Future<void> _changeStatus(String reportId, String currentStatus) async {
                       .collection('reports')
                       .doc(report.id)
                       .collection('comments')
-                      .orderBy('timestamp', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -357,8 +358,40 @@ Future<void> _changeStatus(String reportId, String currentStatus) async {
       ),
       body: Column(
         children: [
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by title...',
+                prefixIcon: Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+          
+          // Filter Dropdown
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               children: [
                 Text('Filter: ', style: TextStyle(fontSize: 16)),
@@ -383,11 +416,13 @@ Future<void> _changeStatus(String reportId, String currentStatus) async {
               ],
             ),
           ),
+          SizedBox(height: 16),
+          
+          // Reports List
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('reports')
-                  .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -400,12 +435,39 @@ Future<void> _changeStatus(String reportId, String currentStatus) async {
 
                 var reports = snapshot.data!.docs;
 
-                // Apply filter
+                // Apply status filter
                 if (_statusFilter != 'All') {
                   reports = reports.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     return data['status'] == _statusFilter;
                   }).toList();
+                }
+
+                // Apply search filter
+                if (_searchQuery.isNotEmpty) {
+                  reports = reports.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final title = (data['title'] ?? '').toString().toLowerCase();
+                    return title.contains(_searchQuery);
+                  }).toList();
+                }
+
+                // Sort by timestamp
+                reports.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTime = aData['timestamp'] as Timestamp?;
+                  final bTime = bData['timestamp'] as Timestamp?;
+                  
+                  if (aTime == null && bTime == null) return 0;
+                  if (aTime == null) return -1;
+                  if (bTime == null) return 1;
+                  
+                  return bTime.compareTo(aTime);
+                });
+
+                if (reports.isEmpty) {
+                  return Center(child: Text('No matching reports found'));
                 }
 
                 return ListView.builder(

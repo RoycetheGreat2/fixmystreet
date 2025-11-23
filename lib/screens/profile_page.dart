@@ -390,21 +390,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       );
                     },
                   ),
-                  _buildMenuItem(
-                    icon: Icons.info,
-                    title: 'About',
-                    onTap: () {
-                      showAboutDialog(
-                        context: context,
-                        applicationName: 'FixMyStreet',
-                        applicationVersion: '1.0.0',
-                        applicationIcon: const Icon(Icons.report_problem, size: 48),
-                        children: const [
-                          Text('Report street violations and help improve your community!'),
-                        ],
-                      );
-                    },
-                  ),
+
                   const Divider(),
                   _buildMenuItem(
                     icon: Icons.logout,

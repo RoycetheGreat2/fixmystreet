@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class AdminUsersManagement extends StatefulWidget {
   const AdminUsersManagement({super.key});
 
@@ -11,6 +10,15 @@ class AdminUsersManagement extends StatefulWidget {
 }
 
 class _AdminUsersManagementState extends State<AdminUsersManagement> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _toggleBanUser(String userId, bool currentBanStatus, String username) async {
     final action = currentBanStatus ? 'unban' : 'ban';
     final confirm = await showDialog<bool>(
@@ -80,23 +88,19 @@ class _AdminUsersManagementState extends State<AdminUsersManagement> {
 
     if (confirm == true) {
       try {
-        // Delete all user's reports
         final userReports = await FirebaseFirestore.instance
             .collection('reports')
             .where('userId', isEqualTo: userId)
             .get();
 
         for (var report in userReports.docs) {
-          // Delete comments in each report
           final comments = await report.reference.collection('comments').get();
           for (var comment in comments.docs) {
             await comment.reference.delete();
           }
-          // Delete report
           await report.reference.delete();
         }
 
-        // Delete all user's comments on other reports
         final allReports = await FirebaseFirestore.instance
             .collection('reports')
             .get();
@@ -112,7 +116,6 @@ class _AdminUsersManagementState extends State<AdminUsersManagement> {
           }
         }
 
-        // Delete user document
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userId)
@@ -223,141 +226,215 @@ class _AdminUsersManagementState extends State<AdminUsersManagement> {
         backgroundColor: const Color(0xFF1025A1),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'No users found. Users will appear here after they create an account.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          final users = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              final data = user.data() as Map<String, dynamic>;
-              final userId = user.id;
-              final username = data['username'] ?? data['displayName'] ?? 'Unknown User';
-              final email = data['email'] ?? 'No email';
-              final isBanned = data['isBanned'] ?? false;
-              final isAdmin = data['isAdmin'] ?? false;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isBanned
-                        ? Colors.red
-                        : isAdmin
-                            ? Colors.purple
-                            : const Color(0xFF1025A1),
-                    child: Icon(
-                      isAdmin ? Icons.admin_panel_settings : Icons.person,
-                      color: Colors.white,
-                    ),
-                  ),
-                  title: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          username,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isAdmin) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.purple,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'ADMIN',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (isBanned) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'BANNED',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  subtitle: Text(email),
-                  trailing: PopupMenuButton(
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        child: const Text('View Reports'),
-                        onTap: () {
-                          Future.delayed(
-                            Duration.zero,
-                            () => _viewUserReports(userId, username),
-                          );
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name or email...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
                         },
-                      ),
-                      if (!isAdmin)
-                        PopupMenuItem(
-                          child: Text(isBanned ? 'Unban User' : 'Ban User'),
-                          onTap: () {
-                            Future.delayed(
-                              Duration.zero,
-                              () => _toggleBanUser(userId, isBanned, username),
-                            );
-                          },
-                        ),
-                      if (!isAdmin)
-                        PopupMenuItem(
-                          child: const Text(
-                            'Delete User',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                          onTap: () {
-                            Future.delayed(
-                              Duration.zero,
-                              () => _deleteUser(userId, username),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              );
-            },
-          );
-        },
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+          
+          // Users List
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, size: 60, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Error: ${snapshot.error}'),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Check Firestore security rules',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        'No users found. Users will appear here after they create an account.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
+                var users = snapshot.data!.docs;
+
+                // Apply search filter
+                if (_searchQuery.isNotEmpty) {
+                  users = users.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final username = (data['username'] ?? data['displayName'] ?? '').toString().toLowerCase();
+                    final email = (data['email'] ?? '').toString().toLowerCase();
+                    return username.contains(_searchQuery) || email.contains(_searchQuery);
+                  }).toList();
+                }
+
+                if (users.isEmpty) {
+                  return const Center(
+                    child: Text('No matching users found'),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final user = users[index];
+                    final data = user.data() as Map<String, dynamic>;
+                    final userId = user.id;
+                    final username = data['username'] ?? data['displayName'] ?? 'Unknown User';
+                    final email = data['email'] ?? 'No email';
+                    final isBanned = data['isBanned'] ?? false;
+                    final isAdmin = data['isAdmin'] ?? false;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isBanned
+                              ? Colors.red
+                              : isAdmin
+                                  ? Colors.purple
+                                  : const Color(0xFF1025A1),
+                          child: Icon(
+                            isAdmin ? Icons.admin_panel_settings : Icons.person,
+                            color: Colors.white,
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                username,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isAdmin) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'ADMIN',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (isBanned) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'BANNED',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(email),
+                        trailing: PopupMenuButton(
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              child: const Text('View Reports'),
+                              onTap: () {
+                                Future.delayed(
+                                  Duration.zero,
+                                  () => _viewUserReports(userId, username),
+                                );
+                              },
+                            ),
+                            if (!isAdmin)
+                              PopupMenuItem(
+                                child: Text(isBanned ? 'Unban User' : 'Ban User'),
+                                onTap: () {
+                                  Future.delayed(
+                                    Duration.zero,
+                                    () => _toggleBanUser(userId, isBanned, username),
+                                  );
+                                },
+                              ),
+                            if (!isAdmin)
+                              PopupMenuItem(
+                                child: const Text(
+                                  'Delete User',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                onTap: () {
+                                  Future.delayed(
+                                    Duration.zero,
+                                    () => _deleteUser(userId, username),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

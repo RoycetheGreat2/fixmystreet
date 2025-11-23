@@ -79,6 +79,7 @@ class _DashBoardState extends State<DashBoard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           'FixMyStreet',
           style: GoogleFonts.poppins(
@@ -148,20 +149,63 @@ class _DashBoardState extends State<DashBoard> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('reports')
-            .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (snapshot.hasError) {
+            print('❌ Error: ${snapshot.error}');
+            return Center(
+              child: Text('Error: ${snapshot.error}'),
+            );
+          }
+
+          if (!snapshot.hasData) {
+            print('❌ No data');
+            return const Center(child: Text('No data'));
+          }
+
+          print('📊 Total reports: ${snapshot.data!.docs.length}');
+
+          if (snapshot.data!.docs.isEmpty) {
             return const Center(
               child: Text('No recent posts found.'),
             );
           }
 
-          final reports = snapshot.data!.docs;
+          // ✅ Sort reports by timestamp in Flutter code
+          final reports = snapshot.data!.docs.toList();
+          
+          // Try-catch around sorting in case of any issues
+          try {
+            reports.sort((a, b) {
+              try {
+                final aData = a.data() as Map<String, dynamic>;
+                final bData = b.data() as Map<String, dynamic>;
+                final aTimestamp = aData['timestamp'];
+                final bTimestamp = bData['timestamp'];
+                
+                // Handle null timestamps
+                if (aTimestamp == null && bTimestamp == null) return 0;
+                if (aTimestamp == null) return -1;
+                if (bTimestamp == null) return 1;
+                
+                // Handle both Timestamp and serverTimestamp
+                if (aTimestamp is Timestamp && bTimestamp is Timestamp) {
+                  return bTimestamp.compareTo(aTimestamp);
+                }
+                
+                return 0;
+              } catch (e) {
+                print('Sort error: $e');
+                return 0;
+              }
+            });
+          } catch (e) {
+            print('❌ Sorting failed: $e');
+          }
 
           return ListView.builder(
             itemCount: reports.length,

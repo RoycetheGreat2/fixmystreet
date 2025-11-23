@@ -13,14 +13,19 @@ class AdminSendNotificationPage extends StatefulWidget {
 class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
-  String _selectedRecipient = 'all'; // 'all' or 'specific'
+  final _userSearchController = TextEditingController();
+  String _selectedRecipient = 'all';
   String? _selectedUserId;
+  String? _selectedUsername;
   bool _isSending = false;
+  bool _showUserDropdown = false;
+  String _userSearchQuery = '';
 
   @override
   void dispose() {
     _titleController.dispose();
     _messageController.dispose();
+    _userSearchController.dispose();
     super.dispose();
   }
 
@@ -45,7 +50,6 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
 
     try {
       if (_selectedRecipient == 'all') {
-        // Send to all users
         final usersSnapshot = await FirebaseFirestore.instance
             .collection('users')
             .get();
@@ -64,7 +68,6 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
           );
         }
       } else {
-        // Send to specific user
         await NotificationService.sendAdminNotification(
           userId: _selectedUserId!,
           title: _titleController.text.trim(),
@@ -78,11 +81,13 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
         }
       }
 
-      // Clear form
       _titleController.clear();
       _messageController.clear();
+      _userSearchController.clear();
       setState(() {
         _selectedUserId = null;
+        _selectedUsername = null;
+        _userSearchQuery = '';
       });
     } catch (e) {
       if (mounted) {
@@ -135,6 +140,8 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
                       setState(() {
                         _selectedRecipient = value!;
                         _selectedUserId = null;
+                        _selectedUsername = null;
+                        _showUserDropdown = false;
                       });
                     },
                   ),
@@ -162,6 +169,8 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
                 ),
               ),
               const SizedBox(height: 8),
+              
+              // Searchable User Selector
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('users').snapshots(),
                 builder: (context, snapshot) {
@@ -169,31 +178,123 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final users = snapshot.data!.docs;
+                  var users = snapshot.data!.docs;
+                  
+                  // Filter users based on search
+                  if (_userSearchQuery.isNotEmpty) {
+                    users = users.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final username = (data['username'] ?? data['email'] ?? '').toString().toLowerCase();
+                      return username.contains(_userSearchQuery.toLowerCase());
+                    }).toList();
+                  }
 
-                  return Card(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: DropdownButton<String>(
-                        value: _selectedUserId,
-                        hint: const Text('Choose a user'),
-                        isExpanded: true,
-                        underline: const SizedBox(),
-                        items: users.map((user) {
-                          final userData = user.data() as Map<String, dynamic>;
-                          final username = userData['username'] ?? userData['email'] ?? 'Unknown';
-                          return DropdownMenuItem<String>(
-                            value: user.id,
-                            child: Text(username),
-                          );
-                        }).toList(),
+                  return Column(
+                    children: [
+                      // Search TextField
+                      TextField(
+                        controller: _userSearchController,
+                        decoration: InputDecoration(
+                          hintText: _selectedUsername ?? 'Search and select a user...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _selectedUsername != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedUserId = null;
+                                      _selectedUsername = null;
+                                      _userSearchController.clear();
+                                      _userSearchQuery = '';
+                                      _showUserDropdown = false;
+                                    });
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _showUserDropdown = true;
+                          });
+                        },
                         onChanged: (value) {
                           setState(() {
-                            _selectedUserId = value;
+                            _userSearchQuery = value;
+                            _showUserDropdown = true;
                           });
                         },
                       ),
-                    ),
+                      
+                      // Dropdown List
+                      if (_showUserDropdown && users.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: users.length,
+                            itemBuilder: (context, index) {
+                              final user = users[index];
+                              final userData = user.data() as Map<String, dynamic>;
+                              final username = userData['username'] ?? userData['email'] ?? 'Unknown';
+                              final email = userData['email'] ?? '';
+                              
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: const Color(0xFF1025A1),
+                                  child: Text(
+                                    username[0].toUpperCase(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                title: Text(username),
+                                subtitle: email.isNotEmpty ? Text(email) : null,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedUserId = user.id;
+                                    _selectedUsername = username;
+                                    _userSearchController.text = username;
+                                    _showUserDropdown = false;
+                                    _userSearchQuery = '';
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      
+                      if (_showUserDropdown && users.isEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: const Text(
+                            'No users found',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),
@@ -277,34 +378,3 @@ class _AdminSendNotificationPageState extends State<AdminSendNotificationPage> {
     );
   }
 }
-
-
-// ========================================
-// ADD THIS TO YOUR ADMIN DASHBOARD
-// ========================================
-
-// In your AdminDashboard widget, add a button to navigate to this page:
-/*
-
-// Add this import at the top:
-import 'admin_send_notification.dart';
-
-// Add this somewhere in your admin dashboard UI:
-ElevatedButton.icon(
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AdminSendNotificationPage(),
-      ),
-    );
-  },
-  icon: const Icon(Icons.notifications_active),
-  label: const Text('Send Notification'),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.red,
-    foregroundColor: Colors.white,
-  ),
-),
-
-*/

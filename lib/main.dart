@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/start.dart'; 
 import 'screens/login.dart';
 import 'screens/signup.dart';
 import 'screens/dashboard.dart';
@@ -28,14 +29,14 @@ class FixMyStreetApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const LoginPage(),
+      home: const SplashScreen(), // Changed from LoginPage to SplashScreen
       routes: {
+        '/login': (context) => const LoginPage(), // Add login route
         '/signup': (context) => const SignUpPage(),
         '/dashboard': (context) => const DashBoard(),
         '/profile': (context) => const ProfilePage(),
         '/notifications': (context) => const NotificationsPage(),
         '/analytics': (context) => const AnalyticsDashboard(),
-
       },
     );
   }

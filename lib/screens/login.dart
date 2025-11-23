@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,9 +28,7 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text,
       );
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashBoard()),
-        );
+        Navigator.of(context).pushReplacementNamed('/dashboard');
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
