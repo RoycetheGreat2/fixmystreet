@@ -10,6 +10,7 @@ import 'admin_dashboard.dart';
 import 'notifications_page.dart';
 import 'profile_page.dart';
 import 'notification_service.dart';
+import 'my_reports_screen.dart';
 
 class DashBoard extends StatefulWidget {
   const DashBoard({super.key});
@@ -382,7 +383,12 @@ class _DashBoardState extends State<DashBoard> {
               ),
               GestureDetector(
                 onTap: () {
-                  //meow
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MyReportsScreen(),
+                    ),
+                  );
                 },
                 child: Column(
                   mainAxisSize: MainAxisSize.max,

@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geoflutterfire_plus/geoflutterfire_plus.dart';
+import 'report_submitted_screen.dart'; // ✅ ADD THIS IMPORT
 
 class SubmitReportScreen extends StatefulWidget {
   final String imagePath;
@@ -35,9 +36,11 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       LocationPermission permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Location permission denied")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Location permission denied")),
+          );
+        }
         return;
       }
 
@@ -173,7 +176,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
         final user = FirebaseAuth.instance.currentUser;
 
-        await collectionRef.add({
+        // ✅ FIXED: Save the document reference so we can get the ID
+        final reportDoc = await collectionRef.add({
           'userId': user?.uid,
           'username': user?.displayName ?? 'Anonymous',
           'title': _titleController.text.trim(),
@@ -190,22 +194,34 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
           'upvoters': [],
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Report submitted successfully!")),
-        );
-
-        if (mounted) Navigator.pop(context);
+        // ✅ FIXED: Navigate to success screen instead of just popping
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReportSubmittedScreen(
+                reportId: reportDoc.id,
+                status: 'Pending',
+                expectedResponse: '3-5 business days',
+              ),
+            ),
+          );
+        }
       } else {
         print("Cloudinary upload failed: ${response.statusCode}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Image upload failed.")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Image upload failed.")),
+          );
+        }
       }
     } catch (e) {
       print("Error uploading report: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

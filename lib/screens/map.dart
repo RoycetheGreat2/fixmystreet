@@ -4,6 +4,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'report_details.dart';
+import 'heatmap_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -177,16 +180,29 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1025A1),
-        title: const Text(
+        title: Text(
           'Map View',
-          style: TextStyle(
-            color: Color(0xFFA5E2FF),
+          style: GoogleFonts.poppins(
+            color: Color.fromARGB(255, 255, 255, 255),
             fontWeight: FontWeight.bold,
           ),
         ),
         iconTheme: const IconThemeData(
-          color: Color(0xFFA5E2FF),
+          color: Color.fromARGB(255, 255, 255, 255),
         ),
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.whatshot, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HeatmapScreen()),
+              );
+            },
+            tooltip: 'View Heatmap',
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -304,8 +320,6 @@ class _MapScreenState extends State<MapScreen> {
                           legendItem(Colors.lightBlue, 'In-Progress'),
                           const SizedBox(height: 5),
                           legendItem(Colors.green, 'Resolved'),
-                          const SizedBox(height: 5),
-                          legendItem(Colors.blue, 'Your Location'),
                         ],
                       ),
                     ),

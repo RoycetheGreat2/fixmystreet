@@ -8,6 +8,8 @@ import 'screens/notifications_page.dart';
 import 'screens/analytics_dashboard.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'screens/my_reports_screen.dart';
+import 'screens/report_submitted_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +39,7 @@ class FixMyStreetApp extends StatelessWidget {
         '/profile': (context) => const ProfilePage(),
         '/notifications': (context) => const NotificationsPage(),
         '/analytics': (context) => const AnalyticsDashboard(),
+        '/my-reports': (context) => const MyReportsScreen(),
       },
     );
   }

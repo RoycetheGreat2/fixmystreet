@@ -48,6 +48,8 @@ dependencies:
   cloudinary_public: ^0.23.1
   geoflutterfire_plus: ^0.0.33
   fl_chart: ^1.1.1
+  geocoding: ^4.0.0
+  flutter_heat_map: ^1.2.1
 
 dev_dependencies:
   flutter_test:
