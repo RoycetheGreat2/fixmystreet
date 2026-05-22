@@ -11,7 +11,9 @@ import 'analytics_dashboard.dart';
 import 'notifications_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final bool embedded;
+
+  const ProfilePage({super.key, this.embedded = false});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -224,6 +226,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
         title: Text(
           'Profile',
           style: GoogleFonts.poppins(

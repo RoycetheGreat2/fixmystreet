@@ -6,9 +6,12 @@ import 'package:geolocator/geolocator.dart';
 import 'report_details.dart';
 import 'heatmap_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/map_tiles.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final bool embedded;
+
+  const MapScreen({super.key, this.embedded = false});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -179,6 +182,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
         backgroundColor: const Color(0xFF1025A1),
         title: Text(
           'Map View',
@@ -227,11 +231,8 @@ class _MapScreenState extends State<MapScreen> {
                           },
                         ),
                         children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            subdomains: const ['a', 'b', 'c'],
-                          ),
+                          AppMapTiles.layer(),
+                          AppMapTiles.attribution(),
                           MarkerLayer(
                             markers: [
                               // User location marker

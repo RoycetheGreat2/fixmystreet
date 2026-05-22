@@ -131,7 +131,7 @@ class ReportSubmittedScreen extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: () {
                           // Navigate to My Reports
-                          Navigator.of(context).pushReplacementNamed('/my-reports');
+                          Navigator.of(context).pushNamed('/my-reports');
                         },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),

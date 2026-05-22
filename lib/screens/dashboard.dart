@@ -23,6 +23,7 @@ class _DashBoardState extends State<DashBoard> {
   final ImagePicker _picker = ImagePicker();
   bool _isAdmin = false;
   int _unreadNotifications = 0;
+  int _selectedNav = 0;
 
   @override
   void initState() {
@@ -76,78 +77,52 @@ class _DashBoardState extends State<DashBoard> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          'FixMyStreet',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            fontSize: 25,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF1025A1),
-        actions: [
-          // Notification bell with badge
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationsPage(),
-                    ),
-                  );
-                },
-              ),
-              if (_unreadNotifications > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+  void _onNavTap(int index) {
+    if (index == 1) {
+      _openCamera();
+      return;
+    }
+    setState(() => _selectedNav = index);
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final selected = _selectedNav == index;
+    final color = selected ? Colors.white : const Color(0xFFA5E2FF);
+
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onNavTap(index),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(icon, color: color, size: selected ? 26 : 24),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                    color: color,
                   ),
                 ),
-            ],
-          ),
-          if (_isAdmin)
-            IconButton(
-              icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminDashboard(),
-                  ),
-                );
-              },
-              tooltip: 'Admin Panel',
+              ],
             ),
-        ],
+          ),
+        ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+    );
+  }
+
+  Widget _buildHomeFeed() {
+    return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('reports')
             .snapshots(),
@@ -310,128 +285,118 @@ class _DashBoardState extends State<DashBoard> {
             },
           );
         },
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: _selectedNav == 0
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              title: Text(
+                'FixMyStreet',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 25,
+                  color: Colors.white,
+                ),
+              ),
+              backgroundColor: const Color(0xFF1025A1),
+              actions: [
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (_unreadNotifications > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            _unreadNotifications > 9
+                                ? '9+'
+                                : '$_unreadNotifications',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (_isAdmin)
+                  IconButton(
+                    icon: const Icon(Icons.admin_panel_settings,
+                        color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminDashboard(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Admin Panel',
+                  ),
+              ],
+            )
+          : null,
+      body: IndexedStack(
+        index: _selectedNav == 0
+            ? 0
+            : _selectedNav == 2
+                ? 1
+                : _selectedNav == 3
+                    ? 2
+                    : _selectedNav == 4
+                        ? 3
+                        : 0,
+        children: [
+          _buildHomeFeed(),
+          const MapScreen(embedded: true),
+          const MyReportsScreen(embedded: true),
+          const ProfilePage(embedded: true),
+        ],
       ),
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF1025A1),
-        child: Container(
-          height: 90,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              GestureDetector(
-                onTap: () {},
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.home, color: Color(0xFFA5E2FF)),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Home',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFA5E2FF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: _openCamera,
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.camera_alt, color: Color(0xFFA5E2FF)),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Report',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFA5E2FF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MapScreen()),
-                  );
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    Icon(Icons.map, color: Color(0xFFA5E2FF)),
-                    SizedBox(height: 4),
-                    Text(
-                      'Map',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFA5E2FF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MyReportsScreen(),
-                    ),
-                  );
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    Icon(Icons.history, color: Color(0xFFA5E2FF)),
-                    SizedBox(height: 4),
-                    Text(
-                      'My Reports',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFA5E2FF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfilePage()),
-                  );
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    Icon(Icons.person, color: Color(0xFFA5E2FF)),
-                    SizedBox(height: 4),
-                    Text(
-                      'Profile',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFA5E2FF),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                _buildNavItem(index: 0, icon: Icons.home, label: 'Home'),
+                _buildNavItem(
+                    index: 1, icon: Icons.camera_alt, label: 'Report'),
+                _buildNavItem(index: 2, icon: Icons.map, label: 'Map'),
+                _buildNavItem(
+                    index: 3, icon: Icons.history, label: 'My Reports'),
+                _buildNavItem(index: 4, icon: Icons.person, label: 'Profile'),
+              ],
+            ),
           ),
         ),
       ),

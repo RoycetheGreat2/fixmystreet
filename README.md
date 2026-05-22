@@ -1,16 +1,38 @@
-# main
+# FixMyStreet
 
-A new Flutter project.
+Flutter app for reporting local infrastructure issues (photos, GPS, map, status tracking). Citizens submit reports; admins manage them via Firebase.
 
-## Getting Started
+## Live portfolio & download
 
-This project is a starting point for a Flutter application.
+| | Link |
+|---|---|
+| **Project page** | https://fixmystreet-portfolio.vercel.app |
+| **Download APK** | https://fixmystreet-portfolio.vercel.app/fixmystreet.apk |
 
-A few resources to get you started if this is your first Flutter project:
+## Features
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Photo reports with GPS and duplicate detection (50 m)
+- Community map & heatmap
+- My reports, notifications, profile
+- Admin dashboard (users, reports, analytics)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Run locally
+
+**Prerequisites:** [Flutter](https://docs.flutter.dev/get-started/install) SDK ^3.9, Firebase project with Email/Password auth enabled.
+
+```bash
+git clone https://github.com/RoycetheGreat2/fixmystreet.git
+cd fixmystreet
+flutter pub get
+flutter run
+```
+
+**Admin access:** In Firestore `users/{uid}`, set `isAdmin: true`.
+
+## Stack
+
+Flutter · Firebase Auth · Cloud Firestore · Cloudinary · flutter_map · geolocator
+
+## Screenshots
+
+See the [portfolio site](https://fixmystreet-portfolio.vercel.app) for UI previews.

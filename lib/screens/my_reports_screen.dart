@@ -8,7 +8,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'report_details.dart';
 
 class MyReportsScreen extends StatefulWidget {
-  const MyReportsScreen({super.key});
+  final bool embedded;
+
+  const MyReportsScreen({super.key, this.embedded = false});
 
   @override
   State<MyReportsScreen> createState() => _MyReportsScreenState();
@@ -17,6 +19,16 @@ class MyReportsScreen extends StatefulWidget {
 class _MyReportsScreenState extends State<MyReportsScreen> {
   final user = FirebaseAuth.instance.currentUser;
   String _statusFilter = 'All';
+
+  bool _matchesFilter(String? status) {
+    if (_statusFilter == 'All') return true;
+    final normalized = (status ?? 'Pending').toLowerCase().replaceAll('_', ' ');
+    final filter = _statusFilter.toLowerCase();
+    if (filter == 'in progress') {
+      return normalized == 'in progress' || normalized == 'in-progress';
+    }
+    return normalized == filter;
+  }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -61,6 +73,7 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFD7E3E8),
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
         backgroundColor: const Color(0xFF1025A1),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -72,19 +85,30 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
           ),
         ),
         actions: [
-          // Filter dropdown
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list, color: Colors.white),
-            onSelected: (value) {
-              setState(() {
-                _statusFilter = value;
-              });
-            },
+            onSelected: (value) => setState(() => _statusFilter = value),
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'All', child: Text('All')),
-              const PopupMenuItem(value: 'Pending', child: Text('Pending')),
-              const PopupMenuItem(value: 'In Progress', child: Text('In Progress')),
-              const PopupMenuItem(value: 'Resolved', child: Text('Resolved')),
+              CheckedPopupMenuItem(
+                value: 'All',
+                checked: _statusFilter == 'All',
+                child: const Text('All'),
+              ),
+              CheckedPopupMenuItem(
+                value: 'Pending',
+                checked: _statusFilter == 'Pending',
+                child: const Text('Pending'),
+              ),
+              CheckedPopupMenuItem(
+                value: 'In Progress',
+                checked: _statusFilter == 'In Progress',
+                child: const Text('In Progress'),
+              ),
+              CheckedPopupMenuItem(
+                value: 'Resolved',
+                checked: _statusFilter == 'Resolved',
+                child: const Text('Resolved'),
+              ),
             ],
           ),
         ],
@@ -138,14 +162,10 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
             );
           }
 
-          // Filter reports by status
-          var reports = snapshot.data!.docs;
-          if (_statusFilter != 'All') {
-            reports = reports.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['status'] == _statusFilter;
-            }).toList();
-          }
+          var reports = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return _matchesFilter(data['status']?.toString());
+          }).toList();
 
           // Sort by timestamp (newest first)
           reports.sort((a, b) {
@@ -177,9 +197,13 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
             );
           }
 
-          return Column(
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {});
+              await Future<void>.delayed(const Duration(milliseconds: 400));
+            },
+            child: Column(
             children: [
-              // Stats header
               Container(
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(16),
@@ -212,129 +236,102 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                 ),
               ),
 
-              // Reports list
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.only(top: 8),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(top: 8, bottom: 24),
                   itemCount: reports.length,
                   itemBuilder: (context, index) {
                     final report = reports[index];
                     final data = report.data() as Map<String, dynamic>;
 
-                    return GestureDetector(
-                      onTap: () {
-                        // Navigate to report details
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ReportDetailsScreen(reportData: report),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ReportDetailsScreen(reportData: report),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Image
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: data['imageUrl'] != null && data['imageUrl'].isNotEmpty
-                                  ? Image.network(
-                                      data['imageUrl'],
-                                      width: 70,
-                                      height: 70,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: data['imageUrl'] != null &&
+                                        data['imageUrl'].toString().isNotEmpty
+                                    ? Image.network(
+                                        data['imageUrl'],
+                                        width: 70,
+                                        height: 70,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: 70,
+                                          height: 70,
+                                          color: Colors.grey[300],
+                                          child: const Icon(Icons.broken_image),
+                                        ),
+                                      )
+                                    : Container(
                                         width: 70,
                                         height: 70,
                                         color: Colors.grey[300],
-                                        child: const Icon(Icons.broken_image),
+                                        child: const Icon(Icons.image),
                                       ),
-                                    )
-                                  : Container(
-                                      width: 70,
-                                      height: 70,
-                                      color: Colors.grey[300],
-                                      child: const Icon(Icons.image),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      data['title'] ?? 'Untitled',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                            ),
-
-                            const SizedBox(width: 12),
-
-                            // Text Section
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    data['title'] ?? 'Untitled',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 6),
-
-                                  Row(
-                                    children: [
-                                      Icon(Icons.location_on,
-                                          size: 16, color: Colors.grey.shade600),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          data['landmark'] ?? 'No location',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 13,
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.location_on,
+                                            size: 16,
+                                            color: Colors.grey.shade600),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            data['landmark'] ?? 'No location',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.grey.shade700,
+                                              fontSize: 13,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-
-                                  Row(
-                                    children: [
-                                      Icon(Icons.access_time,
-                                          size: 16, color: Colors.grey.shade600),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _timeAgo(data['timestamp']),
-                                        style: GoogleFonts.inter(
-                                          color: Colors.grey.shade700,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  // Upvotes
-                                  if (data['upvotes'] != null && data['upvotes'] > 0) ...[
+                                      ],
+                                    ),
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
-                                        Icon(Icons.thumb_up,
-                                            size: 16, color: Colors.red.shade400),
+                                        Icon(Icons.access_time,
+                                            size: 16,
+                                            color: Colors.grey.shade600),
                                         const SizedBox(width: 4),
                                         Text(
-                                          '${data['upvotes']} upvotes',
+                                          _timeAgo(data['timestamp']),
                                           style: GoogleFonts.inter(
                                             color: Colors.grey.shade700,
                                             fontSize: 13,
@@ -342,31 +339,56 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                                         ),
                                       ],
                                     ),
+                                    if (data['upvotes'] != null &&
+                                        data['upvotes'] > 0) ...[
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.thumb_up,
+                                              size: 16,
+                                              color: Colors.red.shade400),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${data['upvotes']} upvotes',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.grey.shade700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ),
-
-                            // Status Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(data['status'] ?? 'Pending'),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                data['status'] ?? 'Pending',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
-                          ],
+                              Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getStatusColor(
+                                          data['status'] ?? 'Pending'),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      data['status'] ?? 'Pending',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Icon(Icons.chevron_right,
+                                      color: Colors.grey.shade400),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -374,6 +396,7 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                 ),
               ),
             ],
+          ),
           );
         },
       ),

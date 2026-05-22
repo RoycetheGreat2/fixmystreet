@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../utils/map_tiles.dart';
 
 class HeatmapScreen extends StatefulWidget {
   const HeatmapScreen({super.key});
@@ -151,10 +152,8 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
                       initialZoom: 12,
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        subdomains: const ['a', 'b', 'c'],
-                      ),
+                      AppMapTiles.layer(),
+                      AppMapTiles.attribution(),
                       CircleLayer(
                         circles: _getHeatmapCircles(),
                       ),
