@@ -32,7 +32,3 @@ flutter run
 ## Stack
 
 Flutter · Firebase Auth · Cloud Firestore · Cloudinary · flutter_map · geolocator
-
-## Screenshots
-
-See the [portfolio site](https://fixmystreet-portfolio.vercel.app) for UI previews.
